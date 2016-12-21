@@ -1,88 +1,50 @@
 package lab3;
 
-import java.io.*;
-import java.net.*;
-import java.util.*;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.SynchronousQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.io.IOException;
+import java.io.PrintStream;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 public class Server {
+	private static final int PORT_NUMBER = 1993;
+	private static final String ROOM_NAME_1 = "chat";
+	private static final String ROOM_NAME_2 = "hottub";
 	
-	ArrayList clientOutputStreams;
-	
-	public class ClientHandler implements Runnable {
-		BufferedReader reader;
-		Socket sock;
+	private static ServerSocket serverSocket = null;		// server socket	
+	private static Socket clientSocket = null;				// client socket	
+
+	public static void main(String args[]) {
+		System.out.println("Server starting...");
+		Map<String,Room> rooms = new HashMap<String,Room>();// create a list of chat rooms
+		Room room1 = new Room(ROOM_NAME_1);					// create a chat room named "chat"
+		Room room2 = new Room(ROOM_NAME_2);					// create a chat room named "hottub"
+		rooms.put(ROOM_NAME_1, room1);						// add chat rooms to list
+		rooms.put(ROOM_NAME_2, room2);
 		
-		public ClientHandler (Socket clientSocket) {
-			try {
-				sock = clientSocket;
-				InputStreamReader isReader = new InputStreamReader(sock.getInputStream());
-				reader = new BufferedReader(isReader);
-			
-			} catch(Exception ex) {ex.printStackTrace();}
-		} // close constructor
+		Set<String> users = new HashSet<String>();			// list of all users
 		
-		public void run() {
-			String message;
-			try {
-				while ((message = reader.readLine()) != null) {
-					System.out.println("read " + message);
-					tellEveryone(message);
-					
-				} // close while
-			} catch(Exception ex) {ex.printStackTrace();}
-		} // close run
-	} // close inner class
-	
-	public static void main (String[] args) {
-		new Server().go();
-	}
-	
-	public void go() {
-		clientOutputStreams = new ArrayList();
 		try {
-			ServerSocket serverSock = new ServerSocket(9312);
-			
-			ExecutorService pool = new ThreadPoolExecutor (0, 50, 
-					60L, TimeUnit.SECONDS, 
-					new SynchronousQueue<Runnable>(), 
-					//new ArrayBlockingQueue<Runnable>(2),
-					//new NoBlockingQueue<Runnable>(0), 
-					new ThreadPoolExecutor.DiscardPolicy());
-			System.out.println("Thread Pool Created, Size: 50");
-			
-			while(true) {
-				Socket clientSocket = serverSock.accept();
-				PrintWriter writer = new PrintWriter(clientSocket.getOutputStream());
-				clientOutputStreams.add(writer);
-				
-				Thread t = new Thread(new ClientHandler(clientSocket));
-				pool.execute(t);
-				//t.start();
-				System.out.println("got a connection");
+			serverSocket = new ServerSocket(PORT_NUMBER);	// open a socket
+		} 
+		catch (IOException e) {
+			System.out.println(e);
+		}		
+		
+		while (true) {										// loop to wait for new clients
+			try {				
+				clientSocket = serverSocket.accept();		// a client is connected
+				new ClientThread(clientSocket, 
+									rooms,
+									users).start();			// creates a thread to take over the new client				
+			} 
+			catch (IOException e) {
+				System.out.println(e);
 			}
-			
-		} catch(Exception ex) {
-			ex.printStackTrace();
 		}
-	} // close go
-	
-	public void tellEveryone(String message) {
-		
-		Iterator it = clientOutputStreams.iterator();
-		while(it.hasNext()) {
-			try {
-				PrintWriter writer = (PrintWriter) it.next();
-				writer.println(message);
-				writer.flush();
-			} catch(Exception ex) {
-				ex.printStackTrace();
-			}
-			
-		} // end while
-		
-	} // close tellEveryone
-} // close class
+	}
+}
+
