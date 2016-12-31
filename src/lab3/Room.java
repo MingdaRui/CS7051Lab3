@@ -1,8 +1,5 @@
 package lab3;
 
-import java.util.List;
-import java.io.PrintStream;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -10,11 +7,17 @@ import java.util.Set;
 
 public class Room {	
 	private String roomName;				// room name
+	static private int staticRoomRef = 0;
+	private int roomRef;
+	private int joinId = 0;
 	private Map<String, ClientThread> roomUsers;	// key is user name, value is thread handling the user
+	private Map<String, Integer> joinUserId;
 	
 	public Room(String roomName) {
 		this.roomName = roomName;
 		roomUsers = new HashMap<String, ClientThread>();
+		joinUserId = new HashMap<String, Integer>();
+		roomRef = staticRoomRef++;
 	}
 	
 	// post a message to all users, except one user
@@ -51,6 +54,8 @@ public class Room {
 								ClientThread clientThread) {
 		synchronized (roomUsers) {
 			roomUsers.put(userName, clientThread);
+			joinId++;
+			joinUserId.put(userName, joinId);
 			return roomUsers.keySet();			
 		}		
 	}
@@ -65,6 +70,7 @@ public class Room {
 		synchronized (roomUsers) {
 			if (roomUsers.containsKey(userName)) {
 				roomUsers.remove(userName);
+				joinUserId.remove(userName);
 				return true;
 			}
 		}
@@ -81,19 +87,27 @@ public class Room {
 	public String getRoomName() {
 		return roomName;
 	}
-
-	public void setRoomName(String roomName) {
-		this.roomName = roomName;
+	
+	public int getRoomRef() {
+		return roomRef;
 	}
+
+//	public void setRoomName(String roomName) {
+//		this.roomName = roomName;
+//	}
 
 	public Map<String, ClientThread> getUsers() {
 		return roomUsers;
 	}
-
-	public void setUsers(Map<String, ClientThread> users) {
-		//this.roomUsers = roomUsers;
-		this.roomUsers = users;
+	
+	public Map<String, Integer> getJoinId() {
+		return joinUserId;
 	}
+
+//	public void setUsers(Map<String, ClientThread> users) {
+//		//this.roomUsers = roomUsers;
+//		this.roomUsers = users;
+//	}
 
 
 }

@@ -1,6 +1,5 @@
 package lab3;
 
-import java.util.List;
 import java.io.BufferedReader;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -8,12 +7,11 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 import java.io.PrintWriter;
 import java.net.Socket;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
 public class ClientThread extends Thread {
-	private final static String WELCOME_MSG = "<= Welcome to the XYZ chat server.\r\n";
+//	private final static String WELCOME_MSG = "<= Welcome to the XYZ chat server.\r\n";
 	private final static String NAME_PROMPT = "<= Login Name?\r\n";
 	private final static String BYE_MSG = "<= BYE";	
 	
@@ -42,10 +40,6 @@ public class ClientThread extends Thread {
 	public PrintWriter getPrintWriter() {
 		return pw;
 	}
-	
-	public PrintStream getOutputStream() {
-		return os;
-	}
 
 	public void run() {		
 		try {			
@@ -56,11 +50,7 @@ public class ClientThread extends Thread {
 										(clientSocket.getInputStream()));
 		    pw = new PrintWriter(clientSocket.getOutputStream(), true);
 			
-			String input;		
-			pw.print(WELCOME_MSG);	// send welcome message to user
-			pw.flush();
-			pw.print(NAME_PROMPT);	// prompt for a login name
-			pw.flush();			
+			String input;			
 			
 			while(true) {				// loop to read user's input				
 				input = br.readLine().trim();
@@ -69,25 +59,21 @@ public class ClientThread extends Thread {
 					getRooms();
 				}
 				
-				else if (input.startsWith("/join")) {	// if client wants to enter a room
+				else if (input.startsWith("j")) {	// JOIN_CHATROOM if client wants to enter a room
 					joinChatRoom(input);
 				}
 				
-				else if (input.startsWith("/leave") ) {	// if client wants to leave chat room
+				else if (input.startsWith("l") ) {	// if client wants to leave chat room
 					leaveChatRoom();
 				}
 				
-				else if (input.startsWith("/quit")) {	// if client wants to quit the system
+				else if (input.startsWith("d")) {	// if client wants to quit the system
 					quit();
 					break;
 				}
 				
 				else {
-					if (userName == null) {				// if client has not logged in yet
-						logIn(input);
-					}
-					
-					else if (roomName != null 				// if client is in a room and
+						if (roomName != null 				// if client is in a room and
 								&& input.length() > 0 &&	// message is not empty and
 								( ! input.startsWith("/"))) {	// it's not start with '/'
 						postMessage(input);
@@ -109,11 +95,18 @@ public class ClientThread extends Thread {
 	
 	// user post a message
 	private void postMessage(String input) {
-		String output = "<= " + userName + ": ";
-		output += input+"\r\n";
 		
-		Room room = rooms.get(roomName);
-		room.postToAll(output);			
+		
+		String[] words = input.split("\\[|\\]");		// split input
+		if (words.length >= 8) {						
+						
+			String output = "CHAT: [" + words[1] + "]\n"
+					        + "CLIENT_NAME: [" + words[5] + "]\n"
+							+ "MESSAGE: [" +words[7] + "]\n";
+		
+			Room room = rooms.get(roomName);
+			room.postToAll(output);	
+		}	
 	}
 	
 	// user logs in with a name
@@ -138,7 +131,7 @@ public class ClientThread extends Thread {
 					users.add(input);			// add user					
 				}
 				userName = input;			// set userName
-				output = "<= Welcome " + userName + "!\r\n";			
+//				output = "<= Welcome " + userName + "!\r\n";			
 			}
 						
 			pw.print(output);				// send message to user
@@ -184,38 +177,47 @@ public class ClientThread extends Thread {
 	// place user in a chat room
 	private void joinChatRoom(String input) {
 		String output = "";
-		if (userName == null) {					// if user has not logged in
-			output = "<= You have not logged in yet.\r\n";
-			output += NAME_PROMPT;						// promt for name
-		}
-		else if (roomName != null) {			// if user is already in a chat room
+
+		if (roomName != null) {			// if user is already in a chat room
 			output = "<= You're already in a chat room.\r\n";
 		}
 		else {											// user has logged in, but not in a chat room
-			String[] words = input.split("\\s+");		// split input to get room name
+			String[] words = input.split("\\[|\\]");		// split input to get room name
 			if (words.length < 2) {						// if no room name 
 				output = "<= Room name missing.\r\n";
+				
+				for(String s : words) {
+					System.out.println(s + "|");
+				}
+				
 			}
 			else {										// if there is a room name
+				
+				if(words.length >= 4) {  // assign new user a user name
+					System.out.println("user name: " + words[3]);
+					logIn(words[3]);
+				}
+				
 				String name = words[1];
-				if ( ! rooms.containsKey(name))			// if room name is not valide 
-					output = "<= Room not exist.\r\n";
-				else {
-					Room room = rooms.get(name);			// get the room client wants
-					Set<String> roomUsers = (Set<String>) 	// add client to the room
-											room.addUser(userName, this);										
+
+				Room room;
+				if (rooms.get(name) != null) {
+					room = rooms.get(name);			// get the room client wants
+				} else {
+					room = new Room(name);
+					rooms.put(name, room);	
+				}
+				
+				room.addUser(userName, this);
+	
+				roomName = name;
 					
-					output = "<= entering room: " + name+"\r\n";
-					for (String user : roomUsers) {
-						output += "<= * " + user + "\r\n";
-					}
-					output += "<= end of list.\r\n";
-					roomName = name;
-					
-					String message = "<= * new user joined " + 
-										roomName+": " + userName +"\r\n";
-					room.postToAllExceptOne(message, userName);
-				}					
+				output = "JOINED_CHATROOM: [" + room.getRoomName() + "]\n"
+						+ "SERVER_IP: [IP address]\n"
+						+ "PORT: [port number]\n"
+						+ "ROOM_REF: [" + room.getRoomRef() + "]\n"
+						+ "JOIN_ID: [" + room.getJoinId().get(userName) + "]\n";
+				
 			}			
 		}		
 		
@@ -235,10 +237,11 @@ public class ClientThread extends Thread {
 			output = "<= You're not in a chat room.\r\n";
 		}
 			
-		else {									// user has logged in, but not in a chat room
+		else {									// user has logged in, and in a chat room
 			Room room = rooms.get(roomName);
-			String message = "<= * user has left " + 
-								roomName+": " + userName+"\r\n";
+
+			String message = "LEFT_CHATROOM: [" + room.getRoomRef() + "]\n"
+					+ "JOIN_ID: [" + room.getJoinId().get(userName) + "]\n";
 			room.postToAll(message);
 			room.removeUser(userName);
 			roomName = null;						
