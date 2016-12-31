@@ -59,15 +59,15 @@ public class ClientThread extends Thread {
 					getRooms();
 				}
 				
-				else if (input.startsWith("j")) {	// JOIN_CHATROOM if client wants to enter a room
+				else if (input.startsWith("JOIN_CHATROOM")) {	// JOIN_CHATROOM if client wants to enter a room
 					joinChatRoom(input);
 				}
 				
-				else if (input.startsWith("l") ) {	// if client wants to leave chat room
+				else if (input.startsWith("LEAVE_CHATROOM") ) {	// if client wants to leave chat room
 					leaveChatRoom();
 				}
 				
-				else if (input.startsWith("d")) {	// if client wants to quit the system
+				else if (input.startsWith("DISCONNECT")) {	// if client wants to quit the system
 					quit();
 					break;
 				}
@@ -193,9 +193,9 @@ public class ClientThread extends Thread {
 			}
 			else {										// if there is a room name
 				
-				if(words.length >= 4) {  // assign new user a user name
-					System.out.println("user name: " + words[3]);
-					logIn(words[3]);
+				if(words.length >= 8) {  // assign new user a user name
+					System.out.println("user name: " + words[7]);
+					logIn(words[7]);
 				}
 				
 				String name = words[1];
